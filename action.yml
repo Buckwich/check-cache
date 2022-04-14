@@ -1,0 +1,20 @@
+name: "Check Cache"
+description: "Check if @action/cache already already exists. Uses simlar inputs as @action/cache"
+author: "Buckwich"
+inputs:
+  key:
+    description: "Check for the main key"
+    required: true
+  restore-keys:
+    description: "Other keys to check"
+    required: false
+outputs:
+  cache-key:
+    description: "Indicates for which key a cache was found"
+  cache-hit:
+    description: "Boolean if any cache was found"
+  exact-hit: 
+    description: "Boolean if primary key was found"
+runs:
+  using: "node16"
+  main: "dist/index.js"

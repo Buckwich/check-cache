@@ -1,0 +1,24 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+    workflow_dispatch:
+
+jobs:
+  test-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Check cache
+        uses: ./
+        id: check-cache
+        with:
+          key: test-${{ runner.os }}-${{ github.run_id }}
+      - name: Print results
+        run: |
+          echo "cache-key: ${{ steps.check-cache.outputs.cache-key}}"
+          echo "cache-hit: ${{ steps.check-cache.outputs.cache-hit}}"
+          echo "exact-hit: ${{ steps.check-cache.outputs.exact-hit}}"
