@@ -2,6 +2,9 @@ name: "Check Cache"
 description: "Check if @action/cache already already exists. Uses simlar inputs as @action/cache"
 author: "Buckwich"
 inputs:
+  path:
+    description: "FilePaths"
+    required: true
   key:
     description: "Check for the main key"
     required: true
@@ -13,7 +16,7 @@ outputs:
     description: "Indicates for which key a cache was found"
   cache-hit:
     description: "Boolean if any cache was found"
-  exact-hit: 
+  exact-hit:
     description: "Boolean if primary key was found"
 runs:
   using: "node16"
