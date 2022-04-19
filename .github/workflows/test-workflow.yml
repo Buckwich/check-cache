@@ -5,7 +5,35 @@ on:
     workflow_dispatch:
 
 jobs:
-  test-check:
+  test-check-pre:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Check cache
+        uses: ./
+        id: check-cache
+        with:
+          path: test.txt
+          key: test-${{ runner.os }}-${{ github.run_id }}
+      - name: Print results
+        run: |
+          echo "cache-key: ${{ steps.check-cache.outputs.cache-key}}"
+          echo "cache-hit: ${{ steps.check-cache.outputs.cache-hit}}"
+          echo "exact-hit: ${{ steps.check-cache.outputs.exact-hit}}"
+  fill-cache:
+    needs: [test-check-pre]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache@v3
+        with:
+          path: test.txt
+          key: test-${{ runner.os }}-${{ github.run_id }}
+      - name: Checkout
+        run: echo Hello >> test.txt
+
+  test-check-post:
+    needs: [fill-cache]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
