@@ -14,6 +14,7 @@ jobs:
         uses: ./
         id: check-cache
         with:
+          path: test.txt
           key: test-${{ runner.os }}-${{ github.run_id }}
       - name: Print results
         run: |
