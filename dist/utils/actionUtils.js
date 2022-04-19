@@ -23,8 +23,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isCacheFeatureAvailable = exports.getInputAsInt = exports.getInputAsArray = exports.isValidEvent = exports.logWarning = exports.getCacheState = exports.setOutputAndState = exports.setCacheHitOutput = exports.setCacheState = exports.isExactKeyMatch = exports.isGhes = void 0;
-const cache = __importStar(require("@actions/cache"));
+exports.isCacheFeatureAvailable = exports.getInputAsArray = exports.isValidEvent = exports.logWarning = exports.isExactKeyMatch = exports.isGhes = void 0;
+const cache_1 = require("@actions/cache");
 const core = __importStar(require("@actions/core"));
 const constants_1 = require("../constants");
 function isGhes() {
@@ -39,29 +39,6 @@ function isExactKeyMatch(key, cacheKey) {
         }) === 0);
 }
 exports.isExactKeyMatch = isExactKeyMatch;
-function setCacheState(state) {
-    core.saveState(constants_1.State.CacheMatchedKey, state);
-}
-exports.setCacheState = setCacheState;
-function setCacheHitOutput(isCacheHit) {
-    core.setOutput(constants_1.Outputs.CacheHit, isCacheHit.toString());
-}
-exports.setCacheHitOutput = setCacheHitOutput;
-function setOutputAndState(key, cacheKey) {
-    setCacheHitOutput(isExactKeyMatch(key, cacheKey));
-    // Store the matched cache key if it exists
-    cacheKey && setCacheState(cacheKey);
-}
-exports.setOutputAndState = setOutputAndState;
-function getCacheState() {
-    const cacheKey = core.getState(constants_1.State.CacheMatchedKey);
-    if (cacheKey) {
-        core.debug(`Cache state/key: ${cacheKey}`);
-        return cacheKey;
-    }
-    return undefined;
-}
-exports.getCacheState = getCacheState;
 function logWarning(message) {
     const warningPrefix = "[warning]";
     core.info(`${warningPrefix}${message}`);
@@ -81,16 +58,8 @@ function getInputAsArray(name, options) {
         .filter((x) => x !== "");
 }
 exports.getInputAsArray = getInputAsArray;
-function getInputAsInt(name, options) {
-    const value = parseInt(core.getInput(name, options));
-    if (isNaN(value) || value < 0) {
-        return undefined;
-    }
-    return value;
-}
-exports.getInputAsInt = getInputAsInt;
 function isCacheFeatureAvailable() {
-    if (!cache.isFeatureAvailable()) {
+    if (!(0, cache_1.isFeatureAvailable)()) {
         if (isGhes()) {
             logWarning("Cache action is only supported on GHES version >= 3.5. If you are on version >=3.5 Please check with GHES admin if Actions cache service is enabled or not.");
         }

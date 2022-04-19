@@ -39,10 +39,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.restoreCache = exports.isFeatureAvailable = exports.ReserveCacheError = exports.ValidationError = void 0;
+exports.checkCache = exports.ReserveCacheError = exports.ValidationError = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const path = __importStar(__nccwpck_require__(1017));
-const utils = __importStar(__nccwpck_require__(1518));
+const cacheUtils = __importStar(__nccwpck_require__(1518));
 const cacheHttpClient = __importStar(__nccwpck_require__(8245));
 class ValidationError extends Error {
     constructor(message) {
@@ -75,24 +75,13 @@ function checkKey(key) {
     }
 }
 /**
- * isFeatureAvailable to check the presence of Actions cache service
+ * Check id a cache for cach input is available
  *
- * @returns boolean return true if Actions cache service feature is available, otherwise false
- */
-function isFeatureAvailable() {
-    return !!process.env["ACTIONS_CACHE_URL"];
-}
-exports.isFeatureAvailable = isFeatureAvailable;
-/**
- * Restores cache from keys
- *
- * @param paths a list of file paths to restore from the cache
  * @param primaryKey an explicit key for restoring the cache
  * @param restoreKeys an optional ordered list of keys to use for restoring the cache if no cache hit occurred for key
- * @param downloadOptions cache download options
  * @returns string returns the key for the cache hit, otherwise returns undefined
  */
-function restoreCache(paths, primaryKey, restoreKeys, options) {
+function checkCache(paths, primaryKey, restoreKeys) {
     return __awaiter(this, void 0, void 0, function* () {
         checkPaths(paths);
         restoreKeys = restoreKeys || [];
@@ -105,7 +94,7 @@ function restoreCache(paths, primaryKey, restoreKeys, options) {
         for (const key of keys) {
             checkKey(key);
         }
-        const compressionMethod = yield utils.getCompressionMethod();
+        const compressionMethod = yield cacheUtils.getCompressionMethod();
         // path are needed to compute version
         const cacheEntry = yield cacheHttpClient.getCacheEntry(keys, paths, {
             compressionMethod,
@@ -114,12 +103,12 @@ function restoreCache(paths, primaryKey, restoreKeys, options) {
             // Cache not found
             return undefined;
         }
-        const archivePath = path.join(yield utils.createTempDirectory(), utils.getCacheFileName(compressionMethod));
+        const archivePath = path.join(yield cacheUtils.createTempDirectory(), cacheUtils.getCacheFileName(compressionMethod));
         core.debug(`Archive Path: ${archivePath}`);
         return cacheEntry.cacheKey;
     });
 }
-exports.restoreCache = restoreCache;
+exports.checkCache = checkCache;
 
 
 /***/ }),
@@ -130,29 +119,19 @@ exports.restoreCache = restoreCache;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.RefKey = exports.Events = exports.State = exports.Outputs = exports.Inputs = void 0;
+exports.RefKey = exports.Outputs = exports.Inputs = void 0;
 var Inputs;
 (function (Inputs) {
-    Inputs["Key"] = "key";
     Inputs["Path"] = "path";
+    Inputs["Key"] = "key";
     Inputs["RestoreKeys"] = "restore-keys";
-    Inputs["UploadChunkSize"] = "upload-chunk-size";
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
 (function (Outputs) {
+    Outputs["CacheKey"] = "cache-key";
     Outputs["CacheHit"] = "cache-hit";
+    Outputs["ExactHit"] = "exact-hit";
 })(Outputs = exports.Outputs || (exports.Outputs = {}));
-var State;
-(function (State) {
-    State["CachePrimaryKey"] = "CACHE_KEY";
-    State["CacheMatchedKey"] = "CACHE_RESULT";
-})(State = exports.State || (exports.State = {}));
-var Events;
-(function (Events) {
-    Events["Key"] = "GITHUB_EVENT_NAME";
-    Events["Push"] = "push";
-    Events["PullRequest"] = "pull_request";
-})(Events = exports.Events || (exports.Events = {}));
 exports.RefKey = "GITHUB_REF";
 
 
@@ -205,33 +184,29 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             if (!utils.isCacheFeatureAvailable()) {
-                utils.setCacheHitOutput(false);
+                core.setOutput(constants_1.Outputs.CacheHit, "false");
                 return;
             }
             // Validate inputs, this can cause task failure
             if (!utils.isValidEvent()) {
-                utils.logWarning(`Event Validation Error: The event type ${process.env[constants_1.Events.Key]} is not supported because it's not tied to a branch or tag ref.`);
+                utils.logWarning(`Event Validation Error: This event type is not supported because it's not tied to a branch or tag ref.`);
                 return;
             }
             const primaryKey = core.getInput(constants_1.Inputs.Key, { required: true });
-            core.saveState(constants_1.State.CachePrimaryKey, primaryKey);
             const restoreKeys = utils.getInputAsArray(constants_1.Inputs.RestoreKeys);
             const cachePaths = utils.getInputAsArray(constants_1.Inputs.Path, {
                 required: true,
             });
             try {
-                //todo
-                // const cacheKey = "";
-                const cacheKey = yield (0, check_cache_1.restoreCache)(cachePaths, primaryKey, restoreKeys);
+                const cacheKey = yield (0, check_cache_1.checkCache)(cachePaths, primaryKey, restoreKeys);
                 if (!cacheKey) {
                     core.info(`Cache not found for input keys: ${[primaryKey, ...restoreKeys].join(", ")}`);
                     return;
                 }
-                // Store the matched cache key
-                utils.setCacheState(cacheKey);
+                core.setOutput(constants_1.Outputs.CacheKey, cacheKey);
+                core.setOutput(constants_1.Outputs.CacheHit, "true");
                 const isExactKeyMatch = utils.isExactKeyMatch(primaryKey, cacheKey);
-                utils.setCacheHitOutput(isExactKeyMatch);
-                core.info(`Cache restored from key: ${cacheKey}`);
+                core.setOutput(constants_1.Outputs.ExactHit, isExactKeyMatch.toString());
             }
             catch (error) {
                 if (error.name === cache_1.ValidationError.name) {
@@ -239,7 +214,7 @@ function run() {
                 }
                 else {
                     utils.logWarning(error.message);
-                    utils.setCacheHitOutput(false);
+                    core.setOutput(constants_1.Outputs.CacheHit, "false");
                 }
             }
         }
@@ -283,8 +258,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isCacheFeatureAvailable = exports.getInputAsInt = exports.getInputAsArray = exports.isValidEvent = exports.logWarning = exports.getCacheState = exports.setOutputAndState = exports.setCacheHitOutput = exports.setCacheState = exports.isExactKeyMatch = exports.isGhes = void 0;
-const cache = __importStar(__nccwpck_require__(7799));
+exports.isCacheFeatureAvailable = exports.getInputAsArray = exports.isValidEvent = exports.logWarning = exports.isExactKeyMatch = exports.isGhes = void 0;
+const cache_1 = __nccwpck_require__(7799);
 const core = __importStar(__nccwpck_require__(2186));
 const constants_1 = __nccwpck_require__(1912);
 function isGhes() {
@@ -299,29 +274,6 @@ function isExactKeyMatch(key, cacheKey) {
         }) === 0);
 }
 exports.isExactKeyMatch = isExactKeyMatch;
-function setCacheState(state) {
-    core.saveState(constants_1.State.CacheMatchedKey, state);
-}
-exports.setCacheState = setCacheState;
-function setCacheHitOutput(isCacheHit) {
-    core.setOutput(constants_1.Outputs.CacheHit, isCacheHit.toString());
-}
-exports.setCacheHitOutput = setCacheHitOutput;
-function setOutputAndState(key, cacheKey) {
-    setCacheHitOutput(isExactKeyMatch(key, cacheKey));
-    // Store the matched cache key if it exists
-    cacheKey && setCacheState(cacheKey);
-}
-exports.setOutputAndState = setOutputAndState;
-function getCacheState() {
-    const cacheKey = core.getState(constants_1.State.CacheMatchedKey);
-    if (cacheKey) {
-        core.debug(`Cache state/key: ${cacheKey}`);
-        return cacheKey;
-    }
-    return undefined;
-}
-exports.getCacheState = getCacheState;
 function logWarning(message) {
     const warningPrefix = "[warning]";
     core.info(`${warningPrefix}${message}`);
@@ -341,16 +293,8 @@ function getInputAsArray(name, options) {
         .filter((x) => x !== "");
 }
 exports.getInputAsArray = getInputAsArray;
-function getInputAsInt(name, options) {
-    const value = parseInt(core.getInput(name, options));
-    if (isNaN(value) || value < 0) {
-        return undefined;
-    }
-    return value;
-}
-exports.getInputAsInt = getInputAsInt;
 function isCacheFeatureAvailable() {
-    if (!cache.isFeatureAvailable()) {
+    if (!(0, cache_1.isFeatureAvailable)()) {
         if (isGhes()) {
             logWarning("Cache action is only supported on GHES version >= 3.5. If you are on version >=3.5 Please check with GHES admin if Actions cache service is enabled or not.");
         }

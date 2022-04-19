@@ -32,10 +32,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.restoreCache = exports.isFeatureAvailable = exports.ReserveCacheError = exports.ValidationError = void 0;
+exports.checkCache = exports.ReserveCacheError = exports.ValidationError = void 0;
 const core = __importStar(require("@actions/core"));
 const path = __importStar(require("path"));
-const utils = __importStar(require("@actions/cache/lib/internal/cacheUtils"));
+const cacheUtils = __importStar(require("@actions/cache/lib/internal/cacheUtils"));
 const cacheHttpClient = __importStar(require("@actions/cache/lib/internal/cacheHttpClient"));
 class ValidationError extends Error {
     constructor(message) {
@@ -68,24 +68,13 @@ function checkKey(key) {
     }
 }
 /**
- * isFeatureAvailable to check the presence of Actions cache service
+ * Check id a cache for cach input is available
  *
- * @returns boolean return true if Actions cache service feature is available, otherwise false
- */
-function isFeatureAvailable() {
-    return !!process.env["ACTIONS_CACHE_URL"];
-}
-exports.isFeatureAvailable = isFeatureAvailable;
-/**
- * Restores cache from keys
- *
- * @param paths a list of file paths to restore from the cache
  * @param primaryKey an explicit key for restoring the cache
  * @param restoreKeys an optional ordered list of keys to use for restoring the cache if no cache hit occurred for key
- * @param downloadOptions cache download options
  * @returns string returns the key for the cache hit, otherwise returns undefined
  */
-function restoreCache(paths, primaryKey, restoreKeys, options) {
+function checkCache(paths, primaryKey, restoreKeys) {
     return __awaiter(this, void 0, void 0, function* () {
         checkPaths(paths);
         restoreKeys = restoreKeys || [];
@@ -98,7 +87,7 @@ function restoreCache(paths, primaryKey, restoreKeys, options) {
         for (const key of keys) {
             checkKey(key);
         }
-        const compressionMethod = yield utils.getCompressionMethod();
+        const compressionMethod = yield cacheUtils.getCompressionMethod();
         // path are needed to compute version
         const cacheEntry = yield cacheHttpClient.getCacheEntry(keys, paths, {
             compressionMethod,
@@ -107,9 +96,9 @@ function restoreCache(paths, primaryKey, restoreKeys, options) {
             // Cache not found
             return undefined;
         }
-        const archivePath = path.join(yield utils.createTempDirectory(), utils.getCacheFileName(compressionMethod));
+        const archivePath = path.join(yield cacheUtils.createTempDirectory(), cacheUtils.getCacheFileName(compressionMethod));
         core.debug(`Archive Path: ${archivePath}`);
         return cacheEntry.cacheKey;
     });
 }
-exports.restoreCache = restoreCache;
+exports.checkCache = checkCache;
