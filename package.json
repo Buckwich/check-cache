@@ -16,6 +16,6 @@
   },
   "dependencies": {
     "@actions/cache": "^2.0.2",
-    "@actions/core": "^1.6.0"
+    "@actions/core": "^1.9.1"
   }
 }
